@@ -1,0 +1,46 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run tests
+      run: echo "Tests fictifs réussis !" # Remplace par des vrais tests si tu en ajoutes
+
+    - name: Build Docker image
+      run: docker build -t devops-demo:latest .
+
+    - name: Push Docker image to GitHub Container Registry
+      env:
+        CR_PAT: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo $CR_PAT | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        docker tag devops-demo:latest ghcr.io/${{ github.repository_owner }}/devops-demo:latest
+        docker push ghcr.io/${{ github.repository_owner }}/devops-demo:latest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Deploy to local Docker container
+      run: |
+        docker pull ghcr.io/${{ github.repository_owner }}/devops-demo:latest
+        docker run -d -p 3000:3000 ghcr.io/${{ github.repository_owner }}/devops-demo:latest
